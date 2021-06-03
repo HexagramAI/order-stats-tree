@@ -25,7 +25,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all --manifest-path native/Cargo.toml -- --check -q
+          args: --all -- --check -q
 
       - name: Run tests
         uses: actions-rs/cargo@v1

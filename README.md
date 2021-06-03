@@ -1,8 +1,8 @@
-Order Statistics Tree for rust [![status][ci_badge]][ci_page] [![pypi][pypi_badge]][pypi_page]
-=====================
-# Factor Expr 
+# Order Statistics Tree for rust [![status][ci_badge]][ci_page]
+
 [ci_badge]: https://github.com/dovahcrow/order-stats-tree/workflows/ci/badge.svg
 [ci_page]: https://github.com/dovahcrow/order-stats-tree/actions
+
 
 A Rust library for creating order statistics tree based on red black tree. 
 The red black tree implementation is shamelessly stolen from [tickbh/rbtree-rs](https://github.com/tickbh/rbtree-rs). Kudos to [@tickbh](https://github.com/tickbh).
