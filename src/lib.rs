@@ -380,6 +380,8 @@ pub struct OSTree<K: Ord, V> {
     root: NodePtr<K, V>,
 }
 
+unsafe impl Send for OSTree {}
+
 // Drop all owned pointers if the tree is dropped
 impl<K: Ord, V> Drop for OSTree<K, V> {
     #[inline]
