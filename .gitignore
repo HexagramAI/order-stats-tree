@@ -2,3 +2,4 @@ target
 Cargo.lock
 /dofmt.bat
 /src/main.rs
+.vscode
