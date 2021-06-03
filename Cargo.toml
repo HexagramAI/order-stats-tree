@@ -1,12 +1,13 @@
 [package]
-name = "rbtree"
-version = "0.1.5"
-authors = ["tickbh <tickdream125@hotmail.com>"]
-description = "the rbtree for Rust"
+authors = ["Weiyuan Wu <youngw@sfu.ca"]
+description = "Order Statistics Tree for Rust"
+documentation = "https://docs.rs/order-stats-tree"
+edition = "2018"
+keywords = ["Order Statistics", "Order Statistics Tree", "Moving Percentile"]
 license = "Apache-2.0/MIT"
-documentation = "https://docs.rs/rbtree"
-repository = "https://github.com/tickbh/rbtree-rs"
+name = "order-stats-tree"
 readme = "README.md"
-keywords = ["HashMap", "RBTree", "rbtree"]
+repository = "https://github.com/dovahcrow/order-stats-tree"
+version = "0.1.0"
 
 [dev-dependencies]

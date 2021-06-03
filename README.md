@@ -1,9 +1,11 @@
-rbtree for rust
+Order Statistics Tree for rust [![status][ci_badge]][ci_page] [![pypi][pypi_badge]][pypi_page]
 =====================
+# Factor Expr 
+[ci_badge]: https://github.com/dovahcrow/order-stats-tree/workflows/ci/badge.svg
+[ci_page]: https://github.com/dovahcrow/order-stats-tree/actions
 
-[![Build Status](https://travis-ci.org/tickbh/rbtree-rs.svg?branch=master)](https://travis-ci.org/tickbh/rbtree-rs) [![Crates.io](https://img.shields.io/crates/v/rbtree.svg)](https://crates.io/crates/rbtree)
-
-A Rust library for creating red-black trees. 
+A Rust library for creating order statistics tree based on red black tree. 
+The red black tree implementation is shamelessly stolen from [tickbh/rbtree-rs](https://github.com/tickbh/rbtree-rs). Kudos to [@tickbh](https://github.com/tickbh).
 
 ## Usage
 
@@ -11,19 +13,15 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rbtree = "0.1"
-```
-
-and this to your crate root:
-
-```rust
-extern crate rbtree;
+order_stats_tree = "0.1"
 ```
 
 How to use
 ```rust
-use rbtree::RBTree;
-let mut m = RBTree::new();
+use order_stats_tree::OSTree;
+let mut m = OSTree::new();
+
+// these are normal Search Tree operations.
 assert_eq!(m.len(), 0);
 m.insert(1, 2);
 assert_eq!(m.len(), 1);
@@ -31,6 +29,14 @@ m.insert(2, 4);
 assert_eq!(m.len(), 2);
 assert_eq!(*m.get(&1).unwrap(), 2);
 assert_eq!(*m.get(&2).unwrap(), 4);
+
+// Get the rank of the element, 0 based
+assert!_eq!(m.rank(&2).unwrap(), 1);
+
+
+// Get the (key, value) of the given rank, 0 based
+assert!_eq!(m.select(0), (&1, &2));
+
 ```
 
 ## Bench
