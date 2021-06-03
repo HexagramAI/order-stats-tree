@@ -360,14 +360,13 @@ impl<K: Ord> OSTree<K> {
 
     #[inline]
     pub fn increase(&mut self, k: K, count: usize) {
-        let mut node = NodePtr::with_count(k, count);
         let mut y = NodePtr::null();
         let mut x = self.root;
 
         while !x.is_null() {
             y = x;
 
-            match node.cmp(&&mut x) {
+            match k.cmp(unsafe { &(*x.0).key }) {
                 Ordering::Less => {
                     x = x.left();
                 }
@@ -377,13 +376,14 @@ impl<K: Ord> OSTree<K> {
                 Ordering::Equal => {
                     x.set_count(x.count() + count);
                     x.propagate_size();
+
                     return;
                 }
             };
         }
 
         // the node is not found
-
+        let mut node = NodePtr::with_count(k, count);
         node.set_parent(y);
 
         if y.is_null() {
