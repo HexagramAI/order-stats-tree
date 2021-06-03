@@ -13,33 +13,28 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-order-stats-tree = "0.1"
+order-stats-tree = {git="https://github.com/dovahcrow/order-stats-tree}
 ```
 
 How to use
+
 ```rust
 use order_stats_tree::OSTree;
 let mut m = OSTree::new();
+m.increase(1, 2);
+m.increase(2, 3);
 
-// these are normal Search Tree operations.
-assert_eq!(m.len(), 0);
-m.insert(1, 2);
-assert_eq!(m.len(), 1);
-m.insert(2, 4);
-assert_eq!(m.len(), 2);
-assert_eq!(*m.get(&1).unwrap(), 2);
-assert_eq!(*m.get(&2).unwrap(), 4);
+// Get the (key, count) of the given rank, 0 based
+// Return None if the rank is out of range
+assert_eq!(m.select(0).unwrap(), (&1, 2));
 
 // Get the rank of the element, 0 based
-assert!_eq!(m.rank(&2).unwrap(), 1);
+Return None if the element is not found
 
-
-// Get the (key, value) of the given rank, 0 based
-assert!_eq!(m.select(0), (&1, &2));
-
+assert_eq!(m.rank(&2).unwrap(), 2);
 ```
 
-## Bench
+<!-- ## Bench
 bench code in ./examples/bench.rs, you can run command, in cpu i7-6700HQ, 2.60GHz
 ```txt
 cargo run --release --example bench
@@ -74,7 +69,7 @@ Insert Test,           Max Cost: 3345163us, Min Cost: 3118450us, Aver Cost: 3221
 Get data by key=20,    Max Cost: 11456ns, Min Cost: 2370ns, Aver Cost: 3831ns
 Remove data by key=20, Max Cost: 9086ns, Min Cost: 2370ns, Aver Cost: 3594ns
 -----------End Tree Test----------------------------------------------
-```
+``` -->
 
 ## License
 

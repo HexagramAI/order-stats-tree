@@ -1,0 +1,336 @@
+use std::cmp::Ord;
+use std::cmp::Ordering;
+use std::fmt::{self, Debug};
+use std::ptr;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) enum Color {
+    Red,
+    Black,
+}
+
+/*****************OSTreeNode***************************/
+pub(crate) struct OSTreeNode<K: Ord> {
+    pub(crate) color: Color,
+    pub(crate) left: NodePtr<K>,
+    pub(crate) right: NodePtr<K>,
+    pub(crate) parent: NodePtr<K>,
+    pub(crate) key: K,
+    pub(crate) count: usize,
+    pub(crate) size: usize, // self.size = self.left.size + self.right.size + self.count
+}
+
+impl<K: Ord> OSTreeNode<K> {
+    #[inline]
+    pub(crate) fn pair(self) -> (K, usize) {
+        (self.key, self.count)
+    }
+}
+
+impl<K> Debug for OSTreeNode<K>
+where
+    K: Ord + Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "k:{:?} n:{} c:{:?}", self.key, self.count, self.color)
+    }
+}
+
+/*****************NodePtr***************************/
+#[derive(Debug)]
+pub(crate) struct NodePtr<K: Ord>(pub(crate) *mut OSTreeNode<K>);
+
+impl<K: Ord> Clone for NodePtr<K> {
+    fn clone(&self) -> NodePtr<K> {
+        NodePtr(self.0)
+    }
+}
+
+impl<K: Ord> Copy for NodePtr<K> {}
+
+impl<K: Ord> Ord for NodePtr<K> {
+    fn cmp(&self, other: &NodePtr<K>) -> Ordering {
+        unsafe { (*self.0).key.cmp(&(*other.0).key) }
+    }
+}
+
+impl<K: Ord> PartialOrd for NodePtr<K> {
+    fn partial_cmp(&self, other: &NodePtr<K>) -> Option<Ordering> {
+        unsafe { Some((*self.0).key.cmp(&(*other.0).key)) }
+    }
+}
+
+impl<K: Ord> PartialEq for NodePtr<K> {
+    fn eq(&self, other: &NodePtr<K>) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<K: Ord> Eq for NodePtr<K> {}
+
+impl<K: Ord> NodePtr<K> {
+    pub(crate) fn with_count(k: K, count: usize) -> NodePtr<K> {
+        let node = OSTreeNode {
+            color: Color::Black,
+            left: NodePtr::null(),
+            right: NodePtr::null(),
+            parent: NodePtr::null(),
+            key: k,
+            count,
+            size: count,
+        };
+        NodePtr(Box::into_raw(Box::new(node)))
+    }
+
+    #[inline]
+    pub(crate) fn set_color(&mut self, color: Color) {
+        if self.is_null() {
+            return;
+        }
+        unsafe {
+            (*self.0).color = color;
+        }
+    }
+
+    #[inline]
+    pub(crate) fn set_red_color(&mut self) {
+        self.set_color(Color::Red);
+    }
+
+    #[inline]
+    pub(crate) fn set_black_color(&mut self) {
+        self.set_color(Color::Black);
+    }
+
+    #[inline]
+    pub(crate) fn get_color(&self) -> Color {
+        if self.is_null() {
+            return Color::Black;
+        }
+        unsafe { (*self.0).color }
+    }
+
+    #[inline]
+    pub(crate) fn is_red_color(&self) -> bool {
+        if self.is_null() {
+            return false;
+        }
+        unsafe { (*self.0).color == Color::Red }
+    }
+
+    #[inline]
+    pub(crate) fn is_black_color(&self) -> bool {
+        if self.is_null() {
+            return true;
+        }
+        unsafe { (*self.0).color == Color::Black }
+    }
+
+    #[inline]
+    pub(crate) fn is_left_child(&self) -> bool {
+        self.parent().left() == *self
+    }
+
+    #[inline]
+    pub(crate) fn is_right_child(&self) -> bool {
+        self.parent().right() == *self
+    }
+
+    #[inline]
+    pub(crate) fn min_node(self) -> NodePtr<K> {
+        let mut temp = self.clone();
+        while !temp.left().is_null() {
+            temp = temp.left();
+        }
+        return temp;
+    }
+
+    #[inline]
+    pub(crate) fn max_node(self) -> NodePtr<K> {
+        let mut temp = self.clone();
+        while !temp.right().is_null() {
+            temp = temp.right();
+        }
+        return temp;
+    }
+
+    #[inline]
+    pub(crate) fn next(self) -> NodePtr<K> {
+        if !self.right().is_null() {
+            self.right().min_node()
+        } else {
+            let mut temp = self;
+            loop {
+                if temp.parent().is_null() {
+                    return NodePtr::null();
+                }
+                if temp.is_left_child() {
+                    return temp.parent();
+                }
+                temp = temp.parent();
+            }
+        }
+    }
+
+    #[inline]
+    pub(crate) fn prev(self) -> NodePtr<K> {
+        if !self.left().is_null() {
+            self.left().max_node()
+        } else {
+            let mut temp = self;
+            loop {
+                if temp.parent().is_null() {
+                    return NodePtr::null();
+                }
+                if temp.is_right_child() {
+                    return temp.parent();
+                }
+                temp = temp.parent();
+            }
+        }
+    }
+
+    #[inline]
+    pub(crate) fn set_parent(&mut self, parent: NodePtr<K>) {
+        if self.is_null() {
+            return;
+        }
+        unsafe { (*self.0).parent = parent }
+    }
+
+    #[inline]
+    pub(crate) fn set_left(&mut self, left: NodePtr<K>) {
+        if self.is_null() {
+            return;
+        }
+        unsafe { (*self.0).left = left }
+    }
+
+    #[inline]
+    pub(crate) fn set_right(&mut self, right: NodePtr<K>) {
+        if self.is_null() {
+            return;
+        }
+        unsafe { (*self.0).right = right }
+    }
+
+    #[inline]
+    pub(crate) fn parent(&self) -> NodePtr<K> {
+        if self.is_null() {
+            return NodePtr::null();
+        }
+        unsafe { (*self.0).parent.clone() }
+    }
+
+    #[inline]
+    pub(crate) fn left(&self) -> NodePtr<K> {
+        if self.is_null() {
+            return NodePtr::null();
+        }
+        unsafe { (*self.0).left.clone() }
+    }
+
+    #[inline]
+    pub(crate) fn right(&self) -> NodePtr<K> {
+        if self.is_null() {
+            return NodePtr::null();
+        }
+        unsafe { (*self.0).right.clone() }
+    }
+
+    #[inline]
+    pub(crate) fn null() -> NodePtr<K> {
+        NodePtr(ptr::null_mut())
+    }
+
+    #[inline]
+    pub(crate) fn is_null(&self) -> bool {
+        self.0.is_null()
+    }
+
+    #[inline]
+    pub(crate) fn count(&self) -> usize {
+        if self.is_null() {
+            0
+        } else {
+            unsafe { (*self.0).count }
+        }
+    }
+
+    #[inline]
+    pub(crate) fn set_count(&self, count: usize) {
+        if self.is_null() {
+        } else {
+            unsafe { (*self.0).count = count }
+        }
+    }
+
+    #[inline]
+    pub(crate) fn size(&self) -> usize {
+        if self.is_null() {
+            0
+        } else {
+            unsafe { (*self.0).size }
+        }
+    }
+
+    #[inline]
+    pub(crate) fn set_size(&self, size: usize) {
+        if self.is_null() {
+        } else {
+            unsafe { (*self.0).size = size }
+        }
+    }
+
+    #[inline]
+    pub(crate) fn refresh_size(&self) {
+        if self.is_null() {
+            return;
+        } else {
+            self.set_size(self.count() + self.left().size() + self.right().size())
+        }
+    }
+
+    // refresh size until root
+    #[inline]
+    pub(crate) fn propagate_size(&self) {
+        let mut node = *self;
+        while !node.is_null() {
+            node.refresh_size();
+            node = node.parent();
+        }
+    }
+
+    pub(crate) fn select(&self, i: usize) -> Option<NodePtr<K>> {
+        // Returns the i'th element (zero-indexed) of the elements in t
+
+        if i >= self.size() {
+            return None;
+        }
+
+        let l = self.left().size();
+        if l <= i && i < l + self.count() {
+            Some(*self)
+        } else if i < l {
+            self.left().select(i)
+        } else {
+            self.right().select(i - l - self.count())
+        }
+    }
+}
+
+impl<K: Ord + Clone> NodePtr<K> {
+    pub unsafe fn deep_clone(&self) -> NodePtr<K> {
+        let mut node = NodePtr::with_count((*self.0).key.clone(), self.count());
+        if !self.left().is_null() {
+            node.set_left(self.left().deep_clone());
+            node.left().set_parent(node);
+        }
+        if !self.right().is_null() {
+            node.set_right(self.right().deep_clone());
+            node.right().set_parent(node);
+        }
+        node.refresh_size();
+        node
+    }
+}
