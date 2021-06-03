@@ -13,7 +13,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-order_stats_tree = "0.1"
+order-stats-tree = "0.1"
 ```
 
 How to use
