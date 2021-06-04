@@ -1,7 +1,7 @@
 use std::cmp::Ord;
 use std::cmp::Ordering;
 use std::fmt::{self, Debug};
-use std::ptr;
+use std::ptr::NonNull;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum Color {
@@ -38,7 +38,7 @@ where
 
 /*****************NodePtr***************************/
 #[derive(Debug)]
-pub(crate) struct NodePtr<K: Ord>(pub(crate) *mut OSTreeNode<K>);
+pub(crate) struct NodePtr<K: Ord>(pub(crate) Option<NonNull<OSTreeNode<K>>>);
 
 impl<K: Ord> Clone for NodePtr<K> {
     fn clone(&self) -> NodePtr<K> {
@@ -50,13 +50,13 @@ impl<K: Ord> Copy for NodePtr<K> {}
 
 impl<K: Ord> Ord for NodePtr<K> {
     fn cmp(&self, other: &NodePtr<K>) -> Ordering {
-        unsafe { (*self.0).key.cmp(&(*other.0).key) }
+        unsafe { self.as_ptr().as_ref().key.cmp(&other.as_ptr().as_ref().key) }
     }
 }
 
 impl<K: Ord> PartialOrd for NodePtr<K> {
     fn partial_cmp(&self, other: &NodePtr<K>) -> Option<Ordering> {
-        unsafe { Some((*self.0).key.cmp(&(*other.0).key)) }
+        unsafe { Some(self.as_ptr().as_ref().key.cmp(&other.as_ptr().as_ref().key)) }
     }
 }
 
@@ -79,16 +79,16 @@ impl<K: Ord> NodePtr<K> {
             count,
             size: count,
         };
-        NodePtr(Box::into_raw(Box::new(node)))
+        NodePtr(Some(unsafe {
+            NonNull::new_unchecked(Box::into_raw(Box::new(node)))
+        }))
     }
 
     #[inline]
     pub(crate) fn set_color(&mut self, color: Color) {
-        if self.is_null() {
-            return;
-        }
-        unsafe {
-            (*self.0).color = color;
+        match self.0 {
+            Some(mut ptr) => unsafe { ptr.as_mut().color = color },
+            None => {}
         }
     }
 
@@ -104,10 +104,10 @@ impl<K: Ord> NodePtr<K> {
 
     #[inline]
     pub(crate) fn get_color(&self) -> Color {
-        if self.is_null() {
-            return Color::Black;
+        match self.0 {
+            Some(ptr) => unsafe { ptr.as_ref().color },
+            None => Color::Black,
         }
-        unsafe { (*self.0).color }
     }
 
     #[inline]
@@ -115,7 +115,7 @@ impl<K: Ord> NodePtr<K> {
         if self.is_null() {
             return false;
         }
-        unsafe { (*self.0).color == Color::Red }
+        self.get_color() == Color::Red
     }
 
     #[inline]
@@ -123,7 +123,7 @@ impl<K: Ord> NodePtr<K> {
         if self.is_null() {
             return true;
         }
-        unsafe { (*self.0).color == Color::Black }
+        self.get_color() == Color::Black
     }
 
     #[inline]
@@ -192,34 +192,34 @@ impl<K: Ord> NodePtr<K> {
 
     #[inline]
     pub(crate) fn set_parent(&mut self, parent: NodePtr<K>) {
-        if self.is_null() {
-            return;
+        match self.0 {
+            Some(mut ptr) => unsafe { ptr.as_mut().parent = parent },
+            None => {}
         }
-        unsafe { (*self.0).parent = parent }
     }
 
     #[inline]
     pub(crate) fn set_left(&mut self, left: NodePtr<K>) {
-        if self.is_null() {
-            return;
+        match self.0 {
+            Some(mut ptr) => unsafe { ptr.as_mut().left = left },
+            None => {}
         }
-        unsafe { (*self.0).left = left }
     }
 
     #[inline]
     pub(crate) fn set_right(&mut self, right: NodePtr<K>) {
-        if self.is_null() {
-            return;
+        match self.0 {
+            Some(mut ptr) => unsafe { ptr.as_mut().right = right },
+            None => {}
         }
-        unsafe { (*self.0).right = right }
     }
 
     #[inline]
     pub(crate) fn parent(&self) -> NodePtr<K> {
-        if self.is_null() {
-            return NodePtr::null();
+        match self.0 {
+            Some(ptr) => unsafe { ptr.as_ref().parent },
+            None => NodePtr::null(),
         }
-        unsafe { (*self.0).parent.clone() }
     }
 
     #[inline]
@@ -227,7 +227,8 @@ impl<K: Ord> NodePtr<K> {
         if self.is_null() {
             return NodePtr::null();
         }
-        unsafe { (*self.0).left.clone() }
+        let ptr = self.0.unwrap();
+        unsafe { ptr.as_ref().left.clone() }
     }
 
     #[inline]
@@ -235,50 +236,68 @@ impl<K: Ord> NodePtr<K> {
         if self.is_null() {
             return NodePtr::null();
         }
-        unsafe { (*self.0).right.clone() }
+        let ptr = self.0.unwrap();
+        unsafe { ptr.as_ref().right.clone() }
     }
 
     #[inline]
     pub(crate) fn null() -> NodePtr<K> {
-        NodePtr(ptr::null_mut())
+        NodePtr(None)
     }
 
     #[inline]
     pub(crate) fn is_null(&self) -> bool {
-        self.0.is_null()
+        self.0.is_none()
+    }
+
+    #[inline]
+    pub(crate) fn into_box(self) -> Box<OSTreeNode<K>> {
+        let ptr = self.0.unwrap();
+        unsafe { Box::from_raw(ptr.as_ptr()) }
+    }
+
+    #[inline]
+    pub(crate) fn as_ptr(&self) -> NonNull<OSTreeNode<K>> {
+        self.0.expect("Null Node")
+    }
+
+    #[inline]
+    pub(crate) fn key(&self) -> K
+    where
+        K: Clone,
+    {
+        unsafe { self.0.expect("Null Node").as_ref().key.clone() }
     }
 
     #[inline]
     pub(crate) fn count(&self) -> usize {
-        if self.is_null() {
-            0
-        } else {
-            unsafe { (*self.0).count }
+        match self.0 {
+            Some(ptr) => unsafe { ptr.as_ref().count },
+            None => 0,
         }
     }
 
     #[inline]
     pub(crate) fn set_count(&self, count: usize) {
-        if self.is_null() {
-        } else {
-            unsafe { (*self.0).count = count }
+        match self.0 {
+            Some(mut ptr) => unsafe { ptr.as_mut().count = count },
+            None => {}
         }
     }
 
     #[inline]
     pub(crate) fn size(&self) -> usize {
-        if self.is_null() {
-            0
-        } else {
-            unsafe { (*self.0).size }
+        match self.0 {
+            Some(ptr) => unsafe { ptr.as_ref().size },
+            None => 0,
         }
     }
 
     #[inline]
     pub(crate) fn set_size(&self, size: usize) {
-        if self.is_null() {
-        } else {
-            unsafe { (*self.0).size = size }
+        match self.0 {
+            Some(mut ptr) => unsafe { ptr.as_mut().size = size },
+            None => {}
         }
     }
 
@@ -321,7 +340,7 @@ impl<K: Ord> NodePtr<K> {
 
 impl<K: Ord + Clone> NodePtr<K> {
     pub unsafe fn deep_clone(&self) -> NodePtr<K> {
-        let mut node = NodePtr::with_count((*self.0).key.clone(), self.count());
+        let mut node = NodePtr::with_count(self.as_ptr().as_ref().key.clone(), self.count());
         if !self.left().is_null() {
             node.set_left(self.left().deep_clone());
             node.left().set_parent(node);

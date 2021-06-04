@@ -11,9 +11,9 @@ fn test_increase() {
     m.increase(3, 6);
     assert_eq!(m.len(), 12);
 
-    assert_eq!(m.get_count(&1).unwrap(), 2);
-    assert_eq!(m.get_count(&2).unwrap(), 4);
-    assert_eq!(m.get_count(&3).unwrap(), 6);
+    assert_eq!(m.count(&1).unwrap(), 2);
+    assert_eq!(m.count(&2).unwrap(), 4);
+    assert_eq!(m.count(&3).unwrap(), 6);
 }
 
 #[test]
@@ -27,8 +27,8 @@ fn test_increase_with_exist() {
     m.increase(2, 6);
     assert_eq!(m.len(), 12);
 
-    assert_eq!(m.get_count(&1).unwrap(), 2);
-    assert_eq!(m.get_count(&2).unwrap(), 10);
+    assert_eq!(m.count(&1).unwrap(), 2);
+    assert_eq!(m.count(&2).unwrap(), 10);
 }
 
 #[test]
@@ -42,11 +42,11 @@ fn test_increase_decrease() {
     m.decrease(&3, 1);
     m.print_tree();
     assert_eq!(m.len(), 11);
-    assert_eq!(m.get_count(&3).unwrap(), 5);
+    assert_eq!(m.count(&3).unwrap(), 5);
 
     m.decrease(&3, 5);
     assert_eq!(m.len(), 6);
-    assert!(m.get_count(&3).is_none());
+    assert!(m.count(&3).is_none());
 }
 
 #[test]
@@ -59,8 +59,8 @@ fn test_clone() {
     assert_eq!(m.len(), 3);
     let m2 = m.clone();
     m.clear();
-    assert_eq!(m2.get_count(&1).unwrap(), 1);
-    assert_eq!(m2.get_count(&2).unwrap(), 2);
+    assert_eq!(m2.count(&1).unwrap(), 1);
+    assert_eq!(m2.count(&2).unwrap(), 2);
     assert_eq!(m2.len(), 3);
 }
 
@@ -153,13 +153,13 @@ fn test_empty_decrease() {
 fn test_remove() {
     let mut m = OSTree::new();
     m.increase(1, 2);
-    assert_eq!(m.get_count(&1).unwrap(), 2);
+    assert_eq!(m.count(&1).unwrap(), 2);
     m.increase(5, 3);
-    assert_eq!(m.get_count(&5).unwrap(), 3);
+    assert_eq!(m.count(&5).unwrap(), 3);
     m.increase(9, 4);
-    assert_eq!(m.get_count(&1).unwrap(), 2);
-    assert_eq!(m.get_count(&5).unwrap(), 3);
-    assert_eq!(m.get_count(&9).unwrap(), 4);
+    assert_eq!(m.count(&1).unwrap(), 2);
+    assert_eq!(m.count(&5).unwrap(), 3);
+    assert_eq!(m.count(&9).unwrap(), 4);
     assert_eq!(m.remove(&1).unwrap(), 2);
     assert_eq!(m.remove(&5).unwrap(), 3);
     assert_eq!(m.remove(&9).unwrap(), 4);
@@ -185,20 +185,20 @@ fn test_is_empty_decrease() {
     assert!(m.is_empty());
 }
 
-// #[test]
-// fn test_pop() {
-//     let mut m = OSTree::new();
-//     m.insert(2, 4);
-//     m.insert(1, 2);
-//     m.insert(3, 6);
-//     assert_eq!(m.len(), 3);
-//     assert_eq!(m.pop_first(), Some((1, 2)));
-//     assert_eq!(m.len(), 2);
-//     assert_eq!(m.pop_last(), Some((3, 6)));
-//     assert_eq!(m.len(), 1);
-//     assert_eq!(m.get_first(), Some((&2, &4)));
-//     assert_eq!(m.get_last(), Some((&2, &4)));
-// }
+#[test]
+fn test_pop() {
+    let mut m = OSTree::new();
+    m.increase(2, 4);
+    m.increase(1, 2);
+    m.increase(3, 6);
+    assert_eq!(m.len(), 12);
+    assert_eq!(m.pop_first(), Some((1, 2)));
+    assert_eq!(m.len(), 10);
+    assert_eq!(m.pop_last(), Some((3, 6)));
+    assert_eq!(m.len(), 4);
+    assert_eq!(m.get_first(), Some((2, 4)));
+    assert_eq!(m.get_last(), Some((2, 4)));
+}
 
 // #[test]
 // fn test_iterate() {
@@ -370,17 +370,17 @@ fn test_is_empty_decrease() {
 //     assert_eq!(map[&2], 1);
 // }
 
-// #[test]
-// #[should_panic]
-// fn test_index_nonexistent() {
-//     let mut map = OSTree::new();
+#[test]
+#[should_panic]
+fn test_index_nonexistent() {
+    let mut map = OSTree::new();
 
-//     map.insert(1, 2);
-//     map.insert(2, 1);
-//     map.insert(3, 4);
+    map.increase(1, 2);
+    map.increase(2, 1);
+    map.increase(3, 4);
 
-//     map[&4];
-// }
+    map.count(&4).unwrap();
+}
 
 // #[test]
 // fn test_extend_iter() {
@@ -435,9 +435,9 @@ fn test_select() {
 
     a.print_tree();
     assert_eq!(a.select(99), None);
-    assert_eq!(a.select(4).unwrap().0, &9);
-    assert_eq!(a.select(3).unwrap().0, &7);
-    assert_eq!(a.select(2).unwrap().0, &4);
-    assert_eq!(a.select(1).unwrap().0, &3);
-    assert_eq!(a.select(0).unwrap().0, &1);
+    assert_eq!(a.select(4).unwrap().0, 9);
+    assert_eq!(a.select(3).unwrap().0, 7);
+    assert_eq!(a.select(2).unwrap().0, 4);
+    assert_eq!(a.select(1).unwrap().0, 3);
+    assert_eq!(a.select(0).unwrap().0, 1);
 }

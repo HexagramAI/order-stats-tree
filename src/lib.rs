@@ -10,5 +10,5 @@ mod iters;
 mod node;
 mod tree;
 
-pub use iters::{Counts, IntoIter, Iter, Keys};
+pub use iters::{IntoIter, Iter, Keys};
 pub use tree::OSTree;

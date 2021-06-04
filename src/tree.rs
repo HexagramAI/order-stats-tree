@@ -1,4 +1,4 @@
-use crate::iters::{Counts, IntoIter, Iter, Keys};
+use crate::iters::{IntoIter, Iter, Keys};
 use crate::node::Color;
 use crate::node::NodePtr;
 use std::cmp::Ord;
@@ -33,7 +33,7 @@ impl<K: Ord + Clone> Clone for OSTree<K> {
 
 impl<K> Debug for OSTree<K>
 where
-    K: Ord + Debug,
+    K: Ord + Debug + Clone,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_map().entries(self.iter()).finish()
@@ -41,27 +41,28 @@ where
 }
 
 impl<K: Ord> OSTree<K> {
+    /// Creates an empty `OSTree`.
+    pub fn new() -> OSTree<K> {
+        OSTree {
+            root: NodePtr::null(),
+        }
+    }
+
+    /// Returns numer of elements in `OSTree`, not the number of keys.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.size()
+    }
+
+    /// Returns numer of elements in `OSTree`, not the number of keys.
     fn size(&self) -> usize {
         self.root.size()
     }
 
-    /// Get the (key, count) of the given rank, 0 based
-    /// Return None if the rank is out of range
-    ///
-    /// # Examples
-    /// ```rust
-    /// use order_stats_tree::OSTree;
-    /// let mut m = OSTree::new();
-    ///
-    /// m.increase(1, 2);
-    /// m.increase(2, 3);
-    /// assert_eq!(m.select(0).unwrap(), (&1, 2));
-    /// ```
-    pub fn select(&self, i: usize) -> Option<(&K, usize)> {
-        match self.root.select(i) {
-            Some(node) => unsafe { Some((&(*node.0).key, node.count())) },
-            None => None,
-        }
+    /// Returns `true` if the `OSTree` is empty.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.root.is_null()
     }
 
     /// Get the rank of the element, 0 based
@@ -102,20 +103,16 @@ impl<K: Ord + Debug> OSTree<K> {
             return;
         }
         if direction == 0 {
-            unsafe {
-                println!("'{:?} ({})' is root node", (*node.0), node.size());
-            }
+            println!("'{:?} ({})' is root node", node, node.size());
         } else {
             let direct = if direction == -1 { "left" } else { "right" };
-            unsafe {
-                println!(
-                    "{:?} ({}) is {:?}'s {:?} child ",
-                    (*node.0),
-                    node.size(),
-                    *node.parent().0,
-                    direct
-                );
-            }
+            println!(
+                "{:?} ({}) is {:?}'s {:?} child ",
+                node,
+                node.size(),
+                node.parent(),
+                direct
+            );
         }
         self.tree_print(node.left(), -1);
         self.tree_print(node.right(), 1);
@@ -135,7 +132,7 @@ impl<K: Ord + Debug> OSTree<K> {
 /// all key be same, but it has multi key, if has multi key, it perhaps no correct
 impl<K> PartialEq for OSTree<K>
 where
-    K: Eq + Ord,
+    K: Eq + Ord + Clone,
 {
     fn eq(&self, other: &OSTree<K>) -> bool {
         if self.len() != other.len() {
@@ -143,11 +140,11 @@ where
         }
 
         self.iter()
-            .all(|(key, count)| other.get_count(key).map_or(false, |c| count == c))
+            .all(|(key, count)| other.count(&key).map_or(false, |c| count == c))
     }
 }
 
-impl<K> Eq for OSTree<K> where K: Eq + Ord {}
+impl<K> Eq for OSTree<K> where K: Eq + Ord + Clone {}
 
 impl<K: Ord> FromIterator<(K, usize)> for OSTree<K> {
     fn from_iter<T: IntoIterator<Item = (K, usize)>>(iter: T) -> OSTree<K> {
@@ -202,25 +199,6 @@ impl<K: Ord> IntoIterator for OSTree<K> {
 }
 
 impl<K: Ord> OSTree<K> {
-    /// Creates an empty `OSTree`.
-    pub fn new() -> OSTree<K> {
-        OSTree {
-            root: NodePtr::null(),
-        }
-    }
-
-    /// Returns the len of `OSTree`.
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.size()
-    }
-
-    /// Returns `true` if the `OSTree` is empty.
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.root.is_null()
-    }
-
     /*
      * 对红黑树的节点(x)进行左旋转
      *
@@ -366,7 +344,7 @@ impl<K: Ord> OSTree<K> {
         while !x.is_null() {
             y = x;
 
-            match k.cmp(unsafe { &(*x.0).key }) {
+            match k.cmp(unsafe { &x.as_ptr().as_ref().key }) {
                 Ordering::Less => {
                     x = x.left();
                 }
@@ -413,20 +391,20 @@ impl<K: Ord> OSTree<K> {
         if self.root.is_null() {
             return NodePtr::null();
         }
-        let mut temp = &self.root;
-        unsafe {
-            loop {
-                let next = match k.cmp(&(*temp.0).key) {
-                    Ordering::Less => &mut (*temp.0).left,
-                    Ordering::Greater => &mut (*temp.0).right,
-                    Ordering::Equal => return *temp,
-                };
-                if next.is_null() {
-                    break;
-                }
-                temp = next;
+        let mut temp = self.root;
+
+        loop {
+            let next = match k.cmp(unsafe { &temp.as_ptr().as_ref().key }) {
+                Ordering::Less => temp.left(),
+                Ordering::Greater => temp.right(),
+                Ordering::Equal => return temp,
+            };
+            if next.is_null() {
+                break;
             }
+            temp = next;
         }
+
         NodePtr::null()
     }
 
@@ -457,43 +435,7 @@ impl<K: Ord> OSTree<K> {
     }
 
     #[inline]
-    pub fn get_first(&self) -> Option<(&K, usize)> {
-        let first = self.first_child();
-        if first.is_null() {
-            return None;
-        }
-        unsafe { Some((&(*first.0).key, first.count())) }
-    }
-
-    #[inline]
-    pub fn get_last(&self) -> Option<(&K, usize)> {
-        let last = self.last_child();
-        if last.is_null() {
-            return None;
-        }
-        unsafe { Some((&(*last.0).key, last.count())) }
-    }
-
-    #[inline]
-    pub fn pop_first(&mut self) -> Option<(K, usize)> {
-        let first = self.first_child();
-        if first.is_null() {
-            return None;
-        }
-        unsafe { Some(self.delete(first)) }
-    }
-
-    #[inline]
-    pub fn pop_last(&mut self) -> Option<(K, usize)> {
-        let last = self.last_child();
-        if last.is_null() {
-            return None;
-        }
-        unsafe { Some(self.delete(last)) }
-    }
-
-    #[inline]
-    pub fn get_count(&self, k: &K) -> Option<usize> {
+    pub fn count(&self, k: &K) -> Option<usize> {
         let node = self.find_node(k);
         if node.is_null() {
             return None;
@@ -514,11 +456,9 @@ impl<K: Ord> OSTree<K> {
     #[inline]
     fn clear_recurse(&mut self, current: NodePtr<K>) {
         if !current.is_null() {
-            unsafe {
-                self.clear_recurse(current.left());
-                self.clear_recurse(current.right());
-                Box::from_raw(current.0);
-            }
+            self.clear_recurse(current.left());
+            self.clear_recurse(current.right());
+            current.into_box();
         }
     }
 
@@ -692,7 +632,7 @@ impl<K: Ord> OSTree<K> {
                 self.delete_fixup(child, parent);
             }
 
-            let obj = Box::from_raw(node.0);
+            let obj = node.into_box();
             return obj.pair();
         }
 
@@ -728,8 +668,26 @@ impl<K: Ord> OSTree<K> {
             self.delete_fixup(child, parent);
         }
 
-        let obj = Box::from_raw(node.0);
+        let obj = node.into_box();
         return obj.pair();
+    }
+
+    #[inline]
+    pub fn pop_first(&mut self) -> Option<(K, usize)> {
+        let first = self.first_child();
+        if first.is_null() {
+            return None;
+        }
+        unsafe { Some(self.delete(first)) }
+    }
+
+    #[inline]
+    pub fn pop_last(&mut self) -> Option<(K, usize)> {
+        let last = self.last_child();
+        if last.is_null() {
+            return None;
+        }
+        unsafe { Some(self.delete(last)) }
     }
 
     /// Return the keys iter
@@ -738,15 +696,54 @@ impl<K: Ord> OSTree<K> {
         Keys::new(self.iter())
     }
 
-    /// Return the counts iter
-    #[inline]
-    pub fn counts(&mut self) -> Counts<K> {
-        Counts::new(self.iter())
-    }
+    // /// Return the counts iter
+    // #[inline]
+    // pub fn counts(&mut self) -> Counts<K> {
+    //     Counts::new(self.iter())
+    // }
 
     /// Return the key and value iter
     #[inline]
     pub fn iter(&self) -> Iter<K> {
         Iter::new(self.first_child(), self.last_child(), self.len())
+    }
+}
+
+impl<K: Ord + Clone> OSTree<K> {
+    /// Get the (key, count) of the given rank, 0 based
+    /// Return None if the rank is out of range
+    ///
+    /// # Examples
+    /// ```rust
+    /// use order_stats_tree::OSTree;
+    /// let mut m = OSTree::new();
+    ///
+    /// m.increase(1, 2);
+    /// m.increase(2, 3);
+    /// assert_eq!(m.select(0).unwrap(), (1, 2));
+    /// ```
+    pub fn select(&self, i: usize) -> Option<(K, usize)> {
+        match self.root.select(i) {
+            Some(node) => Some((node.key().clone(), node.count())),
+            None => None,
+        }
+    }
+
+    #[inline]
+    pub fn get_first(&self) -> Option<(K, usize)> {
+        let first = self.first_child();
+        if first.is_null() {
+            return None;
+        }
+        Some((first.key().clone(), first.count()))
+    }
+
+    #[inline]
+    pub fn get_last(&self) -> Option<(K, usize)> {
+        let last = self.last_child();
+        if last.is_null() {
+            return None;
+        }
+        Some((last.key().clone(), last.count()))
     }
 }

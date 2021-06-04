@@ -1,37 +1,36 @@
 use crate::node::NodePtr;
 use std::fmt;
 use std::fmt::Debug;
-use std::marker;
 
-pub struct Keys<'a, K: Ord + 'a> {
-    inner: Iter<'a, K>,
+pub struct Keys<K: Ord> {
+    inner: Iter<K>,
 }
 
-impl<'a, K: Ord + 'a> Keys<'a, K> {
-    pub(crate) fn new(inner: Iter<'a, K>) -> Self {
+impl<K: Ord> Keys<K> {
+    pub(crate) fn new(inner: Iter<K>) -> Self {
         Self { inner }
     }
 }
 
-impl<'a, K: Ord> Clone for Keys<'a, K> {
-    fn clone(&self) -> Keys<'a, K> {
+impl<K: Ord + Clone> Clone for Keys<K> {
+    fn clone(&self) -> Keys<K> {
         Keys {
             inner: self.inner.clone(),
         }
     }
 }
 
-impl<'a, K: Ord + Debug> fmt::Debug for Keys<'a, K> {
+impl<K: Ord + Debug + Clone> fmt::Debug for Keys<K> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_list().entries(self.clone()).finish()
     }
 }
 
-impl<'a, K: Ord> Iterator for Keys<'a, K> {
-    type Item = &'a K;
+impl<K: Ord + Clone> Iterator for Keys<K> {
+    type Item = K;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a K> {
+    fn next(&mut self) -> Option<K> {
         self.inner.next().map(|(k, _)| k)
     }
 
@@ -41,42 +40,42 @@ impl<'a, K: Ord> Iterator for Keys<'a, K> {
     }
 }
 
-pub struct Counts<'a, K: 'a + Ord> {
-    inner: Iter<'a, K>,
-}
+// pub struct Counts<'a, K: 'a + Ord> {
+//     inner: Iter<'a, K>,
+// }
 
-impl<'a, K: Ord> Counts<'a, K> {
-    pub(crate) fn new(inner: Iter<'a, K>) -> Self {
-        Self { inner }
-    }
-}
-impl<'a, K: Ord> Clone for Counts<'a, K> {
-    fn clone(&self) -> Counts<'a, K> {
-        Counts {
-            inner: self.inner.clone(),
-        }
-    }
-}
+// impl<'a, K: Ord> Counts<'a, K> {
+//     pub(crate) fn new(inner: Iter<'a, K>) -> Self {
+//         Self { inner }
+//     }
+// }
+// impl<'a, K: Ord> Clone for Counts<'a, K> {
+//     fn clone(&self) -> Counts<'a, K> {
+//         Counts {
+//             inner: self.inner.clone(),
+//         }
+//     }
+// }
 
-impl<'a, K: Ord + Debug> fmt::Debug for Counts<'a, K> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_list().entries(self.clone()).finish()
-    }
-}
+// impl<'a, K: Ord + Debug> fmt::Debug for Counts<'a, K> {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         f.debug_list().entries(self.clone()).finish()
+//     }
+// }
 
-impl<'a, K: Ord> Iterator for Counts<'a, K> {
-    type Item = usize;
+// impl<'a, K: Ord> Iterator for Counts<'a, K> {
+//     type Item = usize;
 
-    #[inline]
-    fn next(&mut self) -> Option<usize> {
-        self.inner.next().map(|(_, v)| v)
-    }
+//     #[inline]
+//     fn next(&mut self) -> Option<usize> {
+//         self.inner.next().map(|(_, v)| v)
+//     }
 
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.inner.size_hint()
-    }
-}
+//     #[inline]
+//     fn size_hint(&self) -> (usize, Option<usize>) {
+//         self.inner.size_hint()
+//     }
+// }
 
 /// Convert OSTree to iter, move out the tree.
 pub struct IntoIter<K: Ord> {
@@ -112,7 +111,7 @@ impl<K: Ord> Iterator for IntoIter<K> {
         }
 
         let next = self.head.next();
-        let obj = unsafe { Box::from_raw(self.head.0) };
+        let obj = self.head.into_box();
         let (k, c) = obj.pair();
         self.head = next;
         self.len -= 1;
@@ -136,7 +135,7 @@ impl<K: Ord> DoubleEndedIterator for IntoIter<K> {
         }
 
         let prev = self.tail.prev();
-        let obj = unsafe { Box::from_raw(self.tail.0) };
+        let obj = self.tail.into_box();
         let (k, c) = obj.pair();
         self.tail = prev;
         self.len -= 1;
@@ -144,39 +143,32 @@ impl<K: Ord> DoubleEndedIterator for IntoIter<K> {
     }
 }
 
-pub struct Iter<'a, K: Ord + 'a> {
+pub struct Iter<K: Ord> {
     head: NodePtr<K>,
     tail: NodePtr<K>,
     len: usize,
-    _marker: marker::PhantomData<&'a ()>,
 }
 
-impl<'a, K: Ord> Iter<'a, K> {
+impl<K: Ord> Iter<K> {
     pub(crate) fn new(head: NodePtr<K>, tail: NodePtr<K>, len: usize) -> Self {
-        Iter {
-            head,
-            tail,
-            len,
-            _marker: marker::PhantomData,
-        }
+        Iter { head, tail, len }
     }
 }
 
-impl<'a, K: Ord + 'a> Clone for Iter<'a, K> {
-    fn clone(&self) -> Iter<'a, K> {
+impl<K: Ord + Clone> Clone for Iter<K> {
+    fn clone(&self) -> Iter<K> {
         Iter {
             head: self.head,
             tail: self.tail,
             len: self.len,
-            _marker: self._marker,
         }
     }
 }
 
-impl<'a, K: Ord + 'a> Iterator for Iter<'a, K> {
-    type Item = (&'a K, usize);
+impl<K: Ord + Clone> Iterator for Iter<K> {
+    type Item = (K, usize);
 
-    fn next(&mut self) -> Option<(&'a K, usize)> {
+    fn next(&mut self) -> Option<(K, usize)> {
         if self.len == 0 {
             return None;
         }
@@ -185,7 +177,7 @@ impl<'a, K: Ord + 'a> Iterator for Iter<'a, K> {
             return None;
         }
 
-        let (k, v) = unsafe { (&(*self.head.0).key, self.head.count()) };
+        let (k, v) = (self.head.key(), self.head.count());
         self.head = self.head.next();
         self.len -= 1;
         Some((k, v))
@@ -196,9 +188,9 @@ impl<'a, K: Ord + 'a> Iterator for Iter<'a, K> {
     }
 }
 
-impl<'a, K: Ord + 'a> DoubleEndedIterator for Iter<'a, K> {
+impl<K: Ord + Clone> DoubleEndedIterator for Iter<K> {
     #[inline]
-    fn next_back(&mut self) -> Option<(&'a K, usize)> {
+    fn next_back(&mut self) -> Option<(K, usize)> {
         // println!("len = {:?}", self.len);
         if self.len == 0 {
             return None;
@@ -208,7 +200,7 @@ impl<'a, K: Ord + 'a> DoubleEndedIterator for Iter<'a, K> {
             return None;
         }
 
-        let (k, v) = unsafe { (&(*self.tail.0).key, self.tail.count()) };
+        let (k, v) = (self.tail.key(), self.tail.count());
         self.tail = self.tail.prev();
         self.len -= 1;
         Some((k, v))
