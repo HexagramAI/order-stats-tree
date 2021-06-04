@@ -344,7 +344,7 @@ impl<K: Ord> OSTree<K> {
         while !x.is_null() {
             y = x;
 
-            match k.cmp(unsafe { &x.as_ptr().as_ref().key }) {
+            match k.cmp(unsafe { x.as_ptr().as_ref().key() }) {
                 Ordering::Less => {
                     x = x.left();
                 }
@@ -394,7 +394,7 @@ impl<K: Ord> OSTree<K> {
         let mut temp = self.root;
 
         loop {
-            let next = match k.cmp(unsafe { &temp.as_ptr().as_ref().key }) {
+            let next = match k.cmp(unsafe { temp.as_ptr().as_ref().key() }) {
                 Ordering::Less => temp.left(),
                 Ordering::Greater => temp.right(),
                 Ordering::Equal => return temp,

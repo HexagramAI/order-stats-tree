@@ -11,19 +11,24 @@ pub(crate) enum Color {
 
 /*****************OSTreeNode***************************/
 pub(crate) struct OSTreeNode<K: Ord> {
-    pub(crate) color: Color,
-    pub(crate) left: NodePtr<K>,
-    pub(crate) right: NodePtr<K>,
-    pub(crate) parent: NodePtr<K>,
-    pub(crate) key: K,
-    pub(crate) count: usize,
-    pub(crate) size: usize, // self.size = self.left.size + self.right.size + self.count
+    color: Color,
+    left: NodePtr<K>,
+    right: NodePtr<K>,
+    parent: NodePtr<K>,
+    key: K,
+    count: usize,
+    size: usize, // self.size = self.left.size + self.right.size + self.count
 }
 
 impl<K: Ord> OSTreeNode<K> {
     #[inline]
     pub(crate) fn pair(self) -> (K, usize) {
         (self.key, self.count)
+    }
+
+    #[inline]
+    pub(crate) fn key(&self) -> &K {
+        &self.key
     }
 }
 
