@@ -291,6 +291,48 @@ impl<K: Ord> NodePtr<K> {
     }
 
     #[inline]
+    pub(crate) fn inc_count(&self, count: usize) {
+        if let Some(mut ptr) = self.0 {
+            unsafe {
+                let ptr = ptr.as_mut();
+                ptr.count += count;
+                ptr.size += count;
+            }
+        }
+    }
+
+    #[inline]
+    pub(crate) fn dec_count(&self, count: usize) {
+        if let Some(mut ptr) = self.0 {
+            unsafe {
+                let ptr = ptr.as_mut();
+                ptr.count -= count;
+                ptr.size -= count;
+            }
+        }
+    }
+
+    #[inline]
+    pub(crate) fn inc_size(&self, count: usize) {
+        if let Some(mut ptr) = self.0 {
+            unsafe {
+                let ptr = ptr.as_mut();
+                ptr.size += count;
+            }
+        }
+    }
+
+    #[inline]
+    pub(crate) fn dec_size(&self, count: usize) {
+        if let Some(mut ptr) = self.0 {
+            unsafe {
+                let ptr = ptr.as_mut();
+                ptr.size -= count;
+            }
+        }
+    }
+
+    #[inline]
     pub(crate) fn size(&self) -> usize {
         match self.0 {
             Some(ptr) => unsafe { ptr.as_ref().size },
@@ -316,14 +358,14 @@ impl<K: Ord> NodePtr<K> {
     }
 
     // refresh size until root
-    #[inline]
-    pub(crate) fn propagate_size(&self) {
-        let mut node = *self;
-        while !node.is_null() {
-            node.refresh_size();
-            node = node.parent();
-        }
-    }
+    // #[inline]
+    // pub(crate) fn propagate_size(&self) {
+    //     let mut node = *self;
+    //     while !node.is_null() {
+    //         node.refresh_size();
+    //         node = node.parent();
+    //     }
+    // }
 
     pub(crate) fn select(&self, i: usize) -> Option<NodePtr<K>> {
         // Returns the i'th element (zero-indexed) of the elements in t

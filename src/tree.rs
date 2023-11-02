@@ -343,6 +343,7 @@ impl<K: Ord> OSTree<K> {
 
         while !x.is_null() {
             y = x;
+            y.inc_size(count);
 
             match k.cmp(unsafe { x.as_ptr().as_ref().key() }) {
                 Ordering::Less => {
@@ -352,8 +353,9 @@ impl<K: Ord> OSTree<K> {
                     x = x.right();
                 }
                 Ordering::Equal => {
-                    x.set_count(x.count() + count);
-                    x.propagate_size();
+                    // x.set_count(x.count() + count);
+                    // x.propagate_size();
+                    x.inc_count(count);
 
                     return;
                 }
@@ -379,7 +381,7 @@ impl<K: Ord> OSTree<K> {
 
         node.set_red_color();
 
-        y.propagate_size();
+        // y.propagate_size();
 
         unsafe {
             self.insert_fixup(node);
@@ -488,25 +490,59 @@ impl<K: Ord> OSTree<K> {
 
     #[inline]
     pub fn decrease(&mut self, k: &K, count: usize) -> Option<usize> {
-        let node = self.find_node(k);
+        if self.root.is_null() {
+            return None;
+        }
+
+        let mut node = NodePtr::null();
+        let mut temp = self.root;
+        loop {
+            let next = match k.cmp(unsafe { temp.as_ptr().as_ref().key() }) {
+                Ordering::Less => temp.left(),
+                Ordering::Greater => temp.right(),
+                Ordering::Equal => {
+                    // return temp
+                    node = temp;
+
+                    break;
+                },
+            };
+            temp.dec_size(count);
+            if next.is_null() {
+                break;
+            }
+            temp = next;
+        }
+
+        // NodePtr::null()
+        // let node = self.find_node(k);
         if node.is_null() {
             return None;
         }
-        unsafe { self.decrease_impl(node, count) }
+        unsafe {
+            if node.count() <= count {
+                self.delete(node);
+                Some(0)
+            } else {
+                node.dec_count(count);
+                Some(node.count())
+            }
+            // self.decrease_impl(node, count)
+        }
     }
 
     // the nodeptr should not be null
-    #[inline]
-    unsafe fn decrease_impl(&mut self, node: NodePtr<K>, count: usize) -> Option<usize> {
-        if node.count() <= count {
-            self.delete(node);
-            Some(0)
-        } else {
-            node.set_count(node.count() - count);
-            node.propagate_size();
-            Some(node.count())
-        }
-    }
+    // #[inline]
+    // unsafe fn decrease_impl(&mut self, node: NodePtr<K>, count: usize) -> Option<usize> {
+    //     if node.count() <= count {
+    //         self.delete(node);
+    //         Some(0)
+    //     } else {
+    //         node.set_count(node.count() - count);
+    //         node.propagate_size();
+    //         Some(node.count())
+    //     }
+    // }
 
     #[inline]
     unsafe fn delete_fixup(&mut self, mut node: NodePtr<K>, mut parent: NodePtr<K>) {
