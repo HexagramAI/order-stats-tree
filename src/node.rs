@@ -32,10 +32,7 @@ impl<K: Ord> OSTreeNode<K> {
     }
 }
 
-impl<K> Debug for OSTreeNode<K>
-where
-    K: Ord + Debug,
-{
+impl<K> Debug for OSTreeNode<K> where K: Ord + Debug {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "k:{:?} n:{} c:{:?}", self.key, self.count, self.color)
     }
@@ -98,16 +95,6 @@ impl<K: Ord> NodePtr<K> {
     }
 
     #[inline]
-    pub(crate) fn set_red_color(&mut self) {
-        self.set_color(Color::Red);
-    }
-
-    #[inline]
-    pub(crate) fn set_black_color(&mut self) {
-        self.set_color(Color::Black);
-    }
-
-    #[inline]
     pub(crate) fn get_color(&self) -> Color {
         match self.0 {
             Some(ptr) => unsafe { ptr.as_ref().color },
@@ -148,51 +135,6 @@ impl<K: Ord> NodePtr<K> {
             temp = temp.left();
         }
         return temp;
-    }
-
-    #[inline]
-    pub(crate) fn max_node(self) -> NodePtr<K> {
-        let mut temp = self.clone();
-        while !temp.right().is_null() {
-            temp = temp.right();
-        }
-        return temp;
-    }
-
-    #[inline]
-    pub(crate) fn next(self) -> NodePtr<K> {
-        if !self.right().is_null() {
-            self.right().min_node()
-        } else {
-            let mut temp = self;
-            loop {
-                if temp.parent().is_null() {
-                    return NodePtr::null();
-                }
-                if temp.is_left_child() {
-                    return temp.parent();
-                }
-                temp = temp.parent();
-            }
-        }
-    }
-
-    #[inline]
-    pub(crate) fn prev(self) -> NodePtr<K> {
-        if !self.left().is_null() {
-            self.left().max_node()
-        } else {
-            let mut temp = self;
-            loop {
-                if temp.parent().is_null() {
-                    return NodePtr::null();
-                }
-                if temp.is_right_child() {
-                    return temp.parent();
-                }
-                temp = temp.parent();
-            }
-        }
     }
 
     #[inline]
@@ -267,10 +209,7 @@ impl<K: Ord> NodePtr<K> {
     }
 
     #[inline]
-    pub(crate) fn key(&self) -> K
-    where
-        K: Clone,
-    {
+    pub(crate) fn key(&self) -> K where K: Clone {
         unsafe { self.0.expect("Null Node").as_ref().key.clone() }
     }
 
@@ -341,31 +280,14 @@ impl<K: Ord> NodePtr<K> {
     }
 
     #[inline]
-    pub(crate) fn set_size(&self, size: usize) {
-        match self.0 {
-            Some(mut ptr) => unsafe { ptr.as_mut().size = size },
-            None => {}
-        }
-    }
-
-    #[inline]
     pub(crate) fn refresh_size(&self) {
-        if self.is_null() {
-            return;
-        } else {
-            self.set_size(self.count() + self.left().size() + self.right().size())
+        match self.0 {
+            Some(mut ptr) => unsafe {
+                ptr.as_mut().size = self.count() + self.left().size() + self.right().size()
+            },
+            None => {},
         }
     }
-
-    // refresh size until root
-    // #[inline]
-    // pub(crate) fn propagate_size(&self) {
-    //     let mut node = *self;
-    //     while !node.is_null() {
-    //         node.refresh_size();
-    //         node = node.parent();
-    //     }
-    // }
 
     pub(crate) fn select(&self, i: usize) -> Option<NodePtr<K>> {
         // Returns the i'th element (zero-indexed) of the elements in t
@@ -382,21 +304,5 @@ impl<K: Ord> NodePtr<K> {
         } else {
             self.right().select(i - l - self.count())
         }
-    }
-}
-
-impl<K: Ord + Clone> NodePtr<K> {
-    pub unsafe fn deep_clone(&self) -> NodePtr<K> {
-        let mut node = NodePtr::with_count(self.as_ptr().as_ref().key.clone(), self.count());
-        if !self.left().is_null() {
-            node.set_left(self.left().deep_clone());
-            node.left().set_parent(node);
-        }
-        if !self.right().is_null() {
-            node.set_right(self.right().deep_clone());
-            node.right().set_parent(node);
-        }
-        node.refresh_size();
-        node
     }
 }

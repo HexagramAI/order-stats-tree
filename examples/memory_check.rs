@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 
 // for easy memory check using valgrind
 fn main() {
-    let mut tree = order_stats_tree::OSTree::new();
+    let mut tree = order_stats_tree2::OSTree::new();
 
     let wsize = 320;
 

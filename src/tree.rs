@@ -1,10 +1,8 @@
-use crate::iters::{IntoIter, Iter, Keys};
 use crate::node::Color;
 use crate::node::NodePtr;
 use std::cmp::Ord;
 use std::cmp::Ordering;
-use std::fmt::{self, Debug};
-use std::iter::{FromIterator, IntoIterator};
+use std::fmt::Debug;
 
 pub struct OSTree<K: Ord> {
     root: NodePtr<K>,
@@ -17,26 +15,6 @@ impl<K: Ord> Drop for OSTree<K> {
     #[inline]
     fn drop(&mut self) {
         self.clear();
-    }
-}
-
-/// If key and value are both impl Clone, we can call clone to get a copy.
-impl<K: Ord + Clone> Clone for OSTree<K> {
-    fn clone(&self) -> OSTree<K> {
-        unsafe {
-            let mut new = OSTree::new();
-            new.root = self.root.deep_clone();
-            new
-        }
-    }
-}
-
-impl<K> Debug for OSTree<K>
-where
-    K: Ord + Debug + Clone,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_map().entries(self.iter()).finish()
     }
 }
 
@@ -70,7 +48,7 @@ impl<K: Ord> OSTree<K> {
     ///
     /// # Examples
     /// ```rust
-    /// use order_stats_tree::OSTree;
+    /// use order_stats_tree2::OSTree;
     /// let mut m = OSTree::new();
     ///
     /// m.increase(1, 2);
@@ -126,75 +104,6 @@ impl<K: Ord + Debug> OSTree<K> {
         println!("This tree size = {:?}, begin:-------------", self.len());
         self.tree_print(self.root, 0);
         println!("end--------------------------");
-    }
-}
-
-/// all key be same, but it has multi key, if has multi key, it perhaps no correct
-impl<K> PartialEq for OSTree<K>
-where
-    K: Eq + Ord + Clone,
-{
-    fn eq(&self, other: &OSTree<K>) -> bool {
-        if self.len() != other.len() {
-            return false;
-        }
-
-        self.iter()
-            .all(|(key, count)| other.count(&key).map_or(false, |c| count == c))
-    }
-}
-
-impl<K> Eq for OSTree<K> where K: Eq + Ord + Clone {}
-
-impl<K: Ord> FromIterator<(K, usize)> for OSTree<K> {
-    fn from_iter<T: IntoIterator<Item = (K, usize)>>(iter: T) -> OSTree<K> {
-        let mut tree = OSTree::new();
-        tree.extend(iter);
-        tree
-    }
-}
-
-impl<K: Ord> FromIterator<K> for OSTree<K> {
-    fn from_iter<T: IntoIterator<Item = K>>(iter: T) -> OSTree<K> {
-        let mut tree = OSTree::new();
-        tree.extend(iter);
-        tree
-    }
-}
-
-/// OSTree into iter
-impl<K: Ord> Extend<(K, usize)> for OSTree<K> {
-    fn extend<T: IntoIterator<Item = (K, usize)>>(&mut self, iter: T) {
-        let iter = iter.into_iter();
-        for (k, v) in iter {
-            self.increase(k, v);
-        }
-    }
-}
-
-/// OSTree into iter
-impl<K: Ord> Extend<K> for OSTree<K> {
-    fn extend<T: IntoIterator<Item = K>>(&mut self, iter: T) {
-        let iter = iter.into_iter();
-        for k in iter {
-            self.increase(k, 1);
-        }
-    }
-}
-
-impl<K: Ord> IntoIterator for OSTree<K> {
-    type Item = (K, usize);
-    type IntoIter = IntoIter<K>;
-
-    #[inline]
-    fn into_iter(mut self) -> IntoIter<K> {
-        let iter = if self.root.is_null() {
-            IntoIter::new(NodePtr::null(), NodePtr::null(), self.len())
-        } else {
-            IntoIter::new(self.first_child(), self.last_child(), self.len())
-        };
-        self.fast_clear();
-        iter
     }
 }
 
@@ -289,9 +198,9 @@ impl<K: Ord> OSTree<K> {
                 // Case 1条件：叔叔节点是红色
                 let mut uncle = gparent.right();
                 if !uncle.is_null() && uncle.is_red_color() {
-                    uncle.set_black_color();
-                    parent.set_black_color();
-                    gparent.set_red_color();
+                    uncle.set_color(Color::Black);// .set_black_color();
+                    parent.set_color(Color::Black); //.set_black_color();
+                    gparent.set_color(Color::Red); //.set_red_color();
                     node = gparent;
                     continue;
                 }
@@ -305,16 +214,16 @@ impl<K: Ord> OSTree<K> {
                 }
 
                 // Case 3条件：叔叔是黑色，且当前节点是左孩子。
-                parent.set_black_color();
-                gparent.set_red_color();
+                parent.set_color(Color::Black); //.set_black_color();
+                gparent.set_color(Color::Red); //.set_red_color();
                 self.right_rotate(gparent);
             } else {
                 // Case 1条件：叔叔节点是红色
                 let mut uncle = gparent.left();
                 if !uncle.is_null() && uncle.is_red_color() {
-                    uncle.set_black_color();
-                    parent.set_black_color();
-                    gparent.set_red_color();
+                    uncle.set_color(Color::Black); //.set_black_color();
+                    parent.set_color(Color::Black); //.set_black_color();
+                    gparent.set_color(Color::Red); //.set_red_color();
                     node = gparent;
                     continue;
                 }
@@ -328,12 +237,12 @@ impl<K: Ord> OSTree<K> {
                 }
 
                 // Case 3条件：叔叔是黑色，且当前节点是左孩子。
-                parent.set_black_color();
-                gparent.set_red_color();
+                parent.set_color(Color::Black); //.set_black_color();
+                gparent.set_color(Color::Red); //.set_red_color();
                 self.left_rotate(gparent);
             }
         }
-        self.root.set_black_color();
+        self.root.set_color(Color::Black); //.set_black_color();
     }
 
     #[inline]
@@ -353,8 +262,6 @@ impl<K: Ord> OSTree<K> {
                     x = x.right();
                 }
                 Ordering::Equal => {
-                    // x.set_count(x.count() + count);
-                    // x.propagate_size();
                     x.inc_count(count);
 
                     return;
@@ -379,9 +286,7 @@ impl<K: Ord> OSTree<K> {
             };
         }
 
-        node.set_red_color();
-
-        // y.propagate_size();
+        node.set_color(Color::Red); //.set_red_color();
 
         unsafe {
             self.insert_fixup(node);
@@ -411,51 +316,6 @@ impl<K: Ord> OSTree<K> {
     }
 
     #[inline]
-    fn first_child(&self) -> NodePtr<K> {
-        if self.root.is_null() {
-            NodePtr::null()
-        } else {
-            let mut temp = self.root;
-            while !temp.left().is_null() {
-                temp = temp.left();
-            }
-            return temp;
-        }
-    }
-
-    #[inline]
-    fn last_child(&self) -> NodePtr<K> {
-        if self.root.is_null() {
-            NodePtr::null()
-        } else {
-            let mut temp = self.root;
-            while !temp.right().is_null() {
-                temp = temp.right();
-            }
-            return temp;
-        }
-    }
-
-    #[inline]
-    pub fn count(&self, k: &K) -> Option<usize> {
-        let node = self.find_node(k);
-        if node.is_null() {
-            return None;
-        }
-
-        Some(node.count())
-    }
-
-    #[inline]
-    pub fn contains_key(&self, k: &K) -> bool {
-        let node = self.find_node(k);
-        if node.is_null() {
-            return false;
-        }
-        true
-    }
-
-    #[inline]
     fn clear_recurse(&mut self, current: NodePtr<K>) {
         if !current.is_null() {
             self.clear_recurse(current.left());
@@ -471,23 +331,6 @@ impl<K: Ord> OSTree<K> {
         self.clear_recurse(root);
     }
 
-    /// Empties the `OSTree` without freeing objects in it.
-    #[inline]
-    fn fast_clear(&mut self) {
-        self.root = NodePtr::null();
-    }
-
-    #[inline]
-    pub fn remove(&mut self, k: &K) -> Option<usize> {
-        let node = self.find_node(k);
-        if node.is_null() {
-            return None;
-        }
-        let count = node.count();
-        unsafe { self.delete(node) };
-        Some(count)
-    }
-
     #[inline]
     pub fn decrease(&mut self, k: &K, count: usize) -> Option<usize> {
         if self.root.is_null() {
@@ -501,7 +344,6 @@ impl<K: Ord> OSTree<K> {
                 Ordering::Less => temp.left(),
                 Ordering::Greater => temp.right(),
                 Ordering::Equal => {
-                    // return temp
                     node = temp;
 
                     break;
@@ -514,8 +356,6 @@ impl<K: Ord> OSTree<K> {
             temp = next;
         }
 
-        // NodePtr::null()
-        // let node = self.find_node(k);
         if node.is_null() {
             return None;
         }
@@ -527,22 +367,8 @@ impl<K: Ord> OSTree<K> {
                 node.dec_count(count);
                 Some(node.count())
             }
-            // self.decrease_impl(node, count)
         }
     }
-
-    // the nodeptr should not be null
-    // #[inline]
-    // unsafe fn decrease_impl(&mut self, node: NodePtr<K>, count: usize) -> Option<usize> {
-    //     if node.count() <= count {
-    //         self.delete(node);
-    //         Some(0)
-    //     } else {
-    //         node.set_count(node.count() - count);
-    //         node.propagate_size();
-    //         Some(node.count())
-    //     }
-    // }
 
     #[inline]
     unsafe fn delete_fixup(&mut self, mut node: NodePtr<K>, mut parent: NodePtr<K>) {
@@ -552,29 +378,29 @@ impl<K: Ord> OSTree<K> {
                 other = parent.right();
                 //x的兄弟w是红色的
                 if other.is_red_color() {
-                    other.set_black_color();
-                    parent.set_red_color();
+                    other.set_color(Color::Black); //.set_black_color();
+                    parent.set_color(Color::Red); //.set_red_color();
                     self.left_rotate(parent);
                     other = parent.right();
                 }
 
                 //x的兄弟w是黑色，且w的俩个孩子也都是黑色的
                 if other.left().is_black_color() && other.right().is_black_color() {
-                    other.set_red_color();
+                    other.set_color(Color::Red); //.set_red_color();
                     node = parent;
                     parent = node.parent();
                 } else {
                     //x的兄弟w是黑色的，并且w的左孩子是红色，右孩子为黑色。
                     if other.right().is_black_color() {
-                        other.left().set_black_color();
-                        other.set_red_color();
+                        other.left().set_color(Color::Black); //.set_black_color();
+                        other.set_color(Color::Red); //.set_red_color();
                         self.right_rotate(other);
                         other = parent.right();
                     }
                     //x的兄弟w是黑色的；并且w的右孩子是红色的，左孩子任意颜色。
                     other.set_color(parent.get_color());
-                    parent.set_black_color();
-                    other.right().set_black_color();
+                    parent.set_color(Color::Black); //.set_black_color();
+                    other.right().set_color(Color::Black); //.set_black_color();
                     self.left_rotate(parent);
                     node = self.root;
                     break;
@@ -583,29 +409,29 @@ impl<K: Ord> OSTree<K> {
                 other = parent.left();
                 //x的兄弟w是红色的
                 if other.is_red_color() {
-                    other.set_black_color();
-                    parent.set_red_color();
+                    other.set_color(Color::Black); //.set_black_color();
+                    parent.set_color(Color::Red); //.set_red_color();
                     self.right_rotate(parent);
                     other = parent.left();
                 }
 
                 //x的兄弟w是黑色，且w的俩个孩子也都是黑色的
                 if other.left().is_black_color() && other.right().is_black_color() {
-                    other.set_red_color();
+                    other.set_color(Color::Red); //.set_red_color();
                     node = parent;
                     parent = node.parent();
                 } else {
                     //x的兄弟w是黑色的，并且w的左孩子是红色，右孩子为黑色。
                     if other.left().is_black_color() {
-                        other.right().set_black_color();
-                        other.set_red_color();
+                        other.right().set_color(Color::Black); //.set_black_color();
+                        other.set_color(Color::Red); //.set_red_color();
                         self.left_rotate(other);
                         other = parent.left();
                     }
                     //x的兄弟w是黑色的；并且w的右孩子是红色的，左孩子任意颜色。
                     other.set_color(parent.get_color());
-                    parent.set_black_color();
-                    other.left().set_black_color();
+                    parent.set_color(Color::Black); //.set_black_color();
+                    other.left().set_color(Color::Black); //.set_black_color();
                     self.right_rotate(parent);
                     node = self.root;
                     break;
@@ -613,7 +439,7 @@ impl<K: Ord> OSTree<K> {
             }
         }
 
-        node.set_black_color();
+        node.set_color(Color::Black); //.set_black_color();
     }
 
     #[inline]
@@ -707,42 +533,6 @@ impl<K: Ord> OSTree<K> {
         let obj = node.into_box();
         return obj.pair();
     }
-
-    #[inline]
-    pub fn pop_first(&mut self) -> Option<(K, usize)> {
-        let first = self.first_child();
-        if first.is_null() {
-            return None;
-        }
-        unsafe { Some(self.delete(first)) }
-    }
-
-    #[inline]
-    pub fn pop_last(&mut self) -> Option<(K, usize)> {
-        let last = self.last_child();
-        if last.is_null() {
-            return None;
-        }
-        unsafe { Some(self.delete(last)) }
-    }
-
-    /// Return the keys iter
-    #[inline]
-    pub fn keys(&self) -> Keys<K> {
-        Keys::new(self.iter())
-    }
-
-    // /// Return the counts iter
-    // #[inline]
-    // pub fn counts(&mut self) -> Counts<K> {
-    //     Counts::new(self.iter())
-    // }
-
-    /// Return the key and value iter
-    #[inline]
-    pub fn iter(&self) -> Iter<K> {
-        Iter::new(self.first_child(), self.last_child(), self.len())
-    }
 }
 
 impl<K: Ord + Clone> OSTree<K> {
@@ -751,7 +541,7 @@ impl<K: Ord + Clone> OSTree<K> {
     ///
     /// # Examples
     /// ```rust
-    /// use order_stats_tree::OSTree;
+    /// use order_stats_tree2::OSTree;
     /// let mut m = OSTree::new();
     ///
     /// m.increase(1, 2);
@@ -763,23 +553,5 @@ impl<K: Ord + Clone> OSTree<K> {
             Some(node) => Some((node.key().clone(), node.count())),
             None => None,
         }
-    }
-
-    #[inline]
-    pub fn get_first(&self) -> Option<(K, usize)> {
-        let first = self.first_child();
-        if first.is_null() {
-            return None;
-        }
-        Some((first.key().clone(), first.count()))
-    }
-
-    #[inline]
-    pub fn get_last(&self) -> Option<(K, usize)> {
-        let last = self.last_child();
-        if last.is_null() {
-            return None;
-        }
-        Some((last.key().clone(), last.count()))
     }
 }

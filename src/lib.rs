@@ -6,9 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-mod iters;
 mod node;
 mod tree;
 
-pub use iters::{IntoIter, Iter, Keys};
+// pub use iters::{IntoIter, Iter, Keys};
 pub use tree::OSTree;
